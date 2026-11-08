@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Energia na Mão: app gratuito para pequenos comércios controlarem o consumo de energia elétrica. Projeto de extensão - Economia Sustentável.">
+<style>body{margin:0}</style>
+<title>Energia na Mão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: medidor de energia — painel único com abas; topo = "visor" do medidor com kWh do mês */
+:root{
+  --bg:#eef3f2; --surface:#ffffff; --surface-2:#e3ebe9; --fg:#14211f; --muted:#56676430; --muted-fg:#566764;
+  --line:#cfdbd8; --accent:#0e6b5c; --accent-fg:#ffffff; --volt:#f2a516; --volt-soft:#fff3d6;
+  --good:#1f8a4c; --warn:#c77700; --bad:#c23b2a;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --meter:#0f2a26; --meter-fg:#d9f6ee;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1715; --surface:#13221f; --surface-2:#1a2d29; --fg:#e4efec; --muted-fg:#93aaa5; --line:#28403b;
+  --accent:#3fbfa6; --accent-fg:#06201b; --volt:#f6b73c; --volt-soft:#3a2e12;
+  --good:#4cc47d; --warn:#f0a23a; --bad:#ef6b5a; --meter:#06110f; --meter-fg:#bff3e4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1715; --surface:#13221f; --surface-2:#1a2d29; --fg:#e4efec; --muted-fg:#93aaa5; --line:#28403b;
+  --accent:#3fbfa6; --accent-fg:#06201b; --volt:#f6b73c; --volt-soft:#3a2e12;
+  --good:#4cc47d; --warn:#f0a23a; --bad:#ef6b5a; --meter:#06110f; --meter-fg:#bff3e4; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{flex:none}
+.brand h1{font-family:var(--display);font-weight:800;font-size:1.45rem;margin:0;letter-spacing:-.01em}
+.brand p{margin:0;color:var(--muted-fg);font-size:.85rem}
+.biz{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+label{font-size:.78rem;font-weight:600;color:var(--muted-fg);letter-spacing:.02em}
+input,select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:8px;border:1px solid transparent;padding:9px 14px}
+.btn{background:var(--accent);color:var(--accent-fg)}
+.btn-ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn-x{background:transparent;color:var(--muted-fg);padding:4px 8px;border:none}
+.btn-x:hover{color:var(--bad)}
+.banner{background:var(--volt-soft);border:1px solid var(--volt);border-radius:10px;padding:10px 14px;font-size:.88rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+/* visor */
+.meter{background:var(--meter);color:var(--meter-fg);border-radius:14px;padding:18px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+.meter .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;opacity:.75}
+.meter .v{font-family:var(--mono);font-weight:700;font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1.15}
+.meter .v small{font-size:.8rem;opacity:.7;margin-left:4px}
+.meter .s{font-size:.8rem;opacity:.8}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:700}
+.pill.good{background:color-mix(in srgb,var(--good) 25%,transparent);color:var(--good)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 25%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 25%,transparent);color:var(--bad)}
+.meter .pill.good{color:#7ee0a6}.meter .pill.bad{color:#ff9b8c}.meter .pill.warn{color:#ffc56b}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs button{background:none;color:var(--muted-fg);border-radius:8px 8px 0 0;border-bottom:3px solid transparent;padding:10px 14px;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--volt)}
+section.panel{display:grid;gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.card h2{font-family:var(--display);font-size:1.05rem;margin:0 0 4px}
+.card .hint{color:var(--muted-fg);font-size:.85rem;margin:0 0 12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+.form .f{display:grid;gap:4px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);font-weight:700}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--volt)}
+svg text{fill:var(--muted-fg);font-family:var(--mono);font-size:10px}
+.tips{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.tips li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:10px 12px;border-radius:10px;background:var(--surface-2)}
+.tips li b{display:block}
+.tag{font-family:var(--mono);font-size:.7rem;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--volt-soft);color:var(--fg);white-space:nowrap}
+.flags{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.flag{border-radius:10px;padding:10px;border:1px solid var(--line)}
+.flag b{display:block;font-family:var(--display)}
+.foot{color:var(--muted-fg);font-size:.8rem;text-align:center}
+.goal{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.goal .f{display:grid;gap:4px;width:140px}
+.empty{color:var(--muted-fg);font-size:.9rem;padding:8px 0}
+@media (prefers-reduced-motion: no-preference){.bar i{transition:width .4s ease}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="var(--accent)"/><path d="M22 6 11 23h8l-2 11 12-18h-8z" fill="var(--volt)"/></svg>
+      <div><h1>Energia na Mão</h1><p>Controle de energia para o pequeno comércio · Projeto de extensão · São Virgílio, Caxias do Sul</p></div>
+    </div>
+    <div class="biz">
+      <div class="f" style="display:grid;gap:4px;min-width:190px"><label for="seg">Tipo de comércio</label>
+        <select id="seg">
+          <option value="mercado">Mercado / minimercado</option>
+          <option value="padaria">Padaria / lanchonete</option>
+          <option value="salao">Salão de beleza</option>
+          <option value="farmacia">Farmácia</option>
+          <option value="oficina">Oficina / serviços</option>
+          <option value="loja">Loja de varejo</option>
+        </select></div>
+    </div>
+  </header>
+
+  <div class="banner" id="exBanner" hidden>
+    <span><b>Você está vendo dados de exemplo.</b> Cadastre sua primeira conta de luz ou equipamento para começar com os seus números (ficam salvos só neste aparelho).</span>
+    <button class="btn-ghost" id="clearEx" type="button">Começar do zero</button>
+  </div>
+
+  <div class="meter" aria-live="polite">
+    <div><div class="k">Último mês registrado</div><div class="v" id="mKwh">—</div><div class="s" id="mMes">—</div></div>
+    <div><div class="k">Valor da conta</div><div class="v" id="mRs">—</div><div class="s" id="mTar">—</div></div>
+    <div><div class="k">Comparado ao mês anterior</div><div class="v" id="mVar">—</div><div class="s" id="mVarS">—</div></div>
+    <div><div class="k">Meta de redução</div><div class="v" id="mGoal">—</div><div class="s" id="mGoalS">—</div></div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="contas" id="t-contas">Contas de luz</button>
+    <button role="tab" aria-selected="false" data-tab="equip" id="t-equip">Equipamentos</button>
+    <button role="tab" aria-selected="false" data-tab="dicas" id="t-dicas">Dicas e plano</button>
+    <button role="tab" aria-selected="false" data-tab="conta" id="t-conta">Entenda a conta</button>
+  </nav>
+
+  <!-- CONTAS -->
+  <section class="panel" id="p-contas">
+    <div class="card">
+      <h2>Registrar conta do mês</h2>
+      <p class="hint">Copie da fatura da RGE o consumo em kWh e o valor total. O histórico dos últimos meses também aparece na própria conta.</p>
+      <form class="form" id="fConta">
+        <div class="f"><label for="cMes">Mês de referência</label><input id="cMes" type="month" required></div>
+        <div class="f"><label for="cKwh">Consumo (kWh)</label><input id="cKwh" type="number" min="0" step="1" inputmode="numeric" required placeholder="ex.: 850"></div>
+        <div class="f"><label for="cRs">Valor total (R$)</label><input id="cRs" type="number" min="0" step="0.01" inputmode="decimal" required placeholder="ex.: 790,00"></div>
+        <div class="f"><label for="cBand">Bandeira</label><select id="cBand"><option value="verde">Verde</option><option value="amarela">Amarela</option><option value="vermelha1">Vermelha 1</option><option value="vermelha2">Vermelha 2</option></select></div>
+        <button class="btn" type="submit">Salvar conta</button>
+      </form>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Consumo mês a mês</h2>
+        <p class="hint">Barras em kWh; a linha tracejada é a sua meta.</p>
+        <div id="chart"></div>
+      </div>
+      <div class="card">
+        <h2>Histórico</h2>
+        <div class="tbl"><table><thead><tr><th>Mês</th><th class="n">kWh</th><th class="n">R$</th><th class="n">R$/kWh</th><th>Bandeira</th><th></th></tr></thead><tbody id="tbContas"></tbody></table></div>
+        <div class="goal" style="margin-top:14px">
+          <div class="f"><label for="goal">Meta de redução (%)</label><input id="goal" type="number" min="0" max="60" step="1"></div>
+          <span class="hint" style="margin:0">Sobre a média dos 3 primeiros meses registrados.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EQUIPAMENTOS -->
+  <section class="panel" id="p-equip" hidden>
+    <div class="card">
+      <h2>Quanto cada equipamento gasta</h2>
+      <p class="hint">Consumo estimado = potência (W) × horas por dia × dias por mês × quantidade ÷ 1000. A potência está na etiqueta do aparelho ou no selo Procel/Inmetro.</p>
+      <form class="form" id="fEq">
+        <div class="f" style="grid-column:span 2"><label for="eNome">Equipamento</label><input id="eNome" list="eSug" required placeholder="ex.: Freezer horizontal"><datalist id="eSug"></datalist></div>
+        <div class="f"><label for="eW">Potência (W)</label><input id="eW" type="number" min="1" step="1" required></div>
+        <div class="f"><label for="eH">Horas/dia</label><input id="eH" type="number" min="0.1" max="24" step="0.1" required></div>
+        <div class="f"><label for="eD">Dias/mês</label><input id="eD" type="number" min="1" max="31" step="1" value="26" required></div>
+        <div class="f"><label for="eQ">Quantidade</label><input id="eQ" type="number" min="1" step="1" value="1" required></div>
+        <button class="btn" type="submit">Adicionar</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Ranking de consumo</h2>
+      <p class="hint" id="eqHint">—</p>
+      <div class="tbl"><table><thead><tr><th>Equipamento</th><th class="n">kWh/mês</th><th class="n">R$/mês</th><th style="width:28%">Participação</th><th></th></tr></thead><tbody id="tbEq"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- DICAS -->
+  <section class="panel" id="p-dicas" hidden>
+    <div class="card">
+      <h2>Seu plano de ação</h2>
+      <p class="hint">Gerado a partir dos equipamentos que mais pesam na sua conta e do tipo de comércio.</p>
+      <ul class="tips" id="plan"></ul>
+    </div>
+    <div class="card">
+      <h2 id="segTitle">Dicas para o seu segmento</h2>
+      <ul class="tips" id="segTips"></ul>
+    </div>
+  </section>
+
+  <!-- ENTENDA A CONTA -->
+  <section class="panel" id="p-conta" hidden>
+    <div class="grid2">
+      <div class="card">
+        <h2>O que forma o valor da conta</h2>
+        <ul class="tips">
+          <li><span class="tag">kWh</span><span><b>Consumo</b>Quantidade de energia usada no mês. 1 kWh = um aparelho de 1.000 W ligado por 1 hora.</span></li>
+          <li><span class="tag">TE+TUSD</span><span><b>Tarifa</b>Preço da energia e do uso da rede da distribuidora, definido pela ANEEL.</span></li>
+          <li><span class="tag">ICMS</span><span><b>Tributos</b>ICMS, PIS e COFINS entram sobre o valor; por isso o R$/kWh final é maior que a tarifa.</span></li>
+          <li><span class="tag">CIP</span><span><b>Iluminação pública</b>Contribuição municipal cobrada na mesma fatura.</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Bandeiras tarifárias</h2>
+        <p class="hint">Sinalizam o custo de geração no mês. Em bandeira vermelha, economizar rende mais.</p>
+        <div class="flags">
+          <div class="flag" style="border-color:var(--good)"><b>Verde</b>Condições favoráveis, sem acréscimo.</div>
+          <div class="flag" style="border-color:var(--volt)"><b>Amarela</b>Geração mais cara, acréscimo por kWh.</div>
+          <div class="flag" style="border-color:var(--bad)"><b>Vermelha 1 e 2</b>Geração bem mais cara, acréscimos maiores.</div>
+        </div>
+        <p class="hint" style="margin-top:12px">Fontes: ANEEL (bandeiras tarifárias); Procel; Sebrae — e-books de eficiência energética.</p>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Projeto de extensão em Ciência da Computação · Eixo Economia Sustentável · ODS 8, 12 e 13. Os dados ficam salvos apenas no seu navegador.</p>
+</div>
+
+<script>
+(function(){
+  var KEY='energia-na-mao-v1';
+  var SUG=[['Freezer horizontal',300,24],['Geladeira expositora',450,24],['Balcão refrigerado',350,24],['Ar-condicionado 12.000 BTU',1100,8],['Lâmpada fluorescente tubular',40,10],['Lâmpada LED tubular',18,10],['Forno elétrico',3000,3],['Chapa / fritadeira elétrica',2500,3],['Secador de cabelo',1900,4],['Chapinha / prancha',60,4],['Computador + monitor',200,9],['Máquina de café',1200,2],['Aquecedor elétrico',1500,6],['Compressor de ar',1500,2]];
+  var TIPS={
+    mercado:['Mantenha portas de freezers e expositores fechadas e com borrachas em bom estado.','Afaste geladeiras de paredes e fontes de calor; deixe pelo menos 15 cm para ventilar.','Desligue a iluminação de vitrines e áreas sem uso fora do horário.','Organize a reposição para abrir os expositores o menos possível.'],
+    padaria:['Programe fornos para assar em lotes cheios, evitando ligar o forno para poucas peças.','Faça manutenção nas resistências e vedação das portas do forno.','Desligue chapas e estufas nos horários de pouco movimento.','Use a luz natural no salão durante o dia.'],
+    salao:['Desligue secadores e chapinhas entre um atendimento e outro.','Prefira secadores com função de ar frio/ecológico e mantenha os filtros limpos.','Aqueça a água só no volume necessário.','Troque lâmpadas por LED no espelho e na recepção.'],
+    farmacia:['Ajuste o ar-condicionado em 23 °C e mantenha portas fechadas.','Faça limpeza mensal dos filtros do ar-condicionado.','Verifique a temperatura da geladeira de medicamentos sem exagerar no frio.','Desligue computadores e letreiros ao fechar.'],
+    oficina:['Desligue o compressor de ar ao fim do expediente e procure vazamentos nas mangueiras.','Evite ligar várias máquinas pesadas ao mesmo tempo.','Use iluminação localizada em LED nas bancadas.','Mantenha motores lubrificados e com manutenção em dia.'],
+    loja:['Troque lâmpadas fluorescentes e halógenas da vitrine por LED.','Use timer para desligar a vitrine à noite.','Ajuste o ar-condicionado em 23 °C e feche portas e janelas quando ligado.','Desligue provadores e áreas sem cliente.']
+  };
+  var EX={example:true,seg:'mercado',goal:15,
+    contas:[{m:'2026-05',kwh:1180,rs:1062,b:'verde'},{m:'2026-06',kwh:1240,rs:1150,b:'amarela'},{m:'2026-07',kwh:1210,rs:1125,b:'verde'},{m:'2026-08',kwh:1150,rs:1035,b:'verde'},{m:'2026-09',kwh:1060,rs:965,b:'verde'},{m:'2026-10',kwh:1010,rs:930,b:'amarela'}],
+    eq:[{n:'Freezer horizontal',w:300,h:24,d:30,q:2},{n:'Geladeira expositora',w:450,h:24,d:30,q:1},{n:'Lâmpada fluorescente tubular',w:40,h:12,d:26,q:12},{n:'Ar-condicionado 12.000 BTU',w:1100,h:6,d:22,q:1},{n:'Computador + monitor',w:200,h:10,d:26,q:1}]};
+  var st;
+  function load(){try{var r=localStorage.getItem(KEY);if(r){st=JSON.parse(r);return}}catch(e){} st=JSON.parse(JSON.stringify(EX));}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+  function leaveExample(){if(st.example){st={example:false,seg:st.seg,goal:st.goal,contas:[],eq:[]}}}
+  var $=function(id){return document.getElementById(id)};
+  var fmt=function(n,d){return Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d||0,maximumFractionDigits:d||0})};
+  var brl=function(n){return 'R$ '+fmt(n,2)};
+  var MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  var mlabel=function(m){var p=m.split('-');return MES[+p[1]-1]+'/'+p[0].slice(2)};
+  var BAND={verde:['Verde','good'],amarela:['Amarela','warn'],vermelha1:['Vermelha 1','bad'],vermelha2:['Vermelha 2','bad']};
+  function sorted(){return st.contas.slice().sort(function(a,b){return a.m<b.m?-1:1})}
+  function tarifa(){var c=sorted();if(!c.length)return 0.92;var l=c[c.length-1];return l.kwh?l.rs/l.kwh:0.92}
+  function base(){var c=sorted().slice(0,3);if(!c.length)return 0;return c.reduce(function(s,x){return s+x.kwh},0)/c.length}
+  function eqK(e){return e.w*e.h*e.d*e.q/1000}
+
+  function renderMeter(){
+    var c=sorted();$('exBanner').hidden=!st.example;
+    if(!c.length){['mKwh','mRs','mVar','mGoal'].forEach(function(i){$(i).textContent='—'});$('mMes').textContent='Registre sua primeira conta';$('mTar').textContent='';$('mVarS').textContent='';$('mGoalS').textContent='';return}
+    var l=c[c.length-1],p=c[c.length-2];
+    $('mKwh').innerHTML=fmt(l.kwh)+'<small>kWh</small>';$('mMes').textContent=mlabel(l.m)+' · bandeira '+BAND[l.b][0].toLowerCase();
+    $('mRs').textContent=brl(l.rs);$('mTar').textContent=fmt(l.rs/l.kwh,2)+' R$/kWh com tributos';
+    if(p){var v=(l.kwh-p.kwh)/p.kwh*100;$('mVar').textContent=(v>0?'+':'')+fmt(v,1)+'%';$('mVarS').innerHTML='<span class="pill '+(v<=0?'good':'bad')+'">'+(v<=0?'caiu':'subiu')+' '+fmt(Math.abs(l.kwh-p.kwh))+' kWh</span>'}else{$('mVar').textContent='—';$('mVarS').textContent='Precisa de 2 meses'}
+    var b=base(),g=st.goal||0,alvo=b*(1-g/100);
+    $('mGoal').innerHTML=fmt(alvo)+'<small>kWh</small>';
+    var red=b?(b-l.kwh)/b*100:0;
+    $('mGoalS').innerHTML='Meta −'+fmt(g)+'% · <span class="pill '+(red>=g?'good':red>0?'warn':'bad')+'">'+(red>=g?'atingida':'redução atual '+fmt(Math.max(red,0),1)+'%')+'</span>';
+  }
+  function renderChart(){
+    var c=sorted(),el=$('chart');if(!c.length){el.innerHTML='<p class="empty">Nenhuma conta registrada ainda.</p>';return}
+    var W=460,H=210,pl=44,pr=10,pt=12,pb=26,max=Math.max.apply(null,c.map(function(x){return x.kwh}).concat([base()]))*1.1;
+    var step=Math.pow(10,Math.floor(Math.log10(max)));var tick=max/step>5?step:step/2;max=Math.ceil(max/tick)*tick;
+    var bw=(W-pl-pr)/c.length,y=function(v){return pt+(H-pt-pb)*(1-v/max)},s='';
+    for(var t=0;t<=max+0.001;t+=tick){s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(t)+'" y2="'+y(t)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(pl-6)+'" y="'+(y(t)+3)+'" text-anchor="end">'+fmt(t)+'</text>'}
+    c.forEach(function(x,i){var bx=pl+i*bw+bw*.18,bh=H-pb-y(x.kwh),last=i===c.length-1;
+      s+='<rect x="'+bx+'" y="'+y(x.kwh)+'" width="'+(bw*.64)+'" height="'+bh+'" rx="3" fill="'+(last?'var(--volt)':'var(--accent)')+'"><title>'+mlabel(x.m)+': '+fmt(x.kwh)+' kWh</title></rect><text x="'+(bx+bw*.32)+'" y="'+(H-8)+'" text-anchor="middle">'+mlabel(x.m)+'</text>'});
+    var g=base()*(1-(st.goal||0)/100);
+    if(g>0)s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(g)+'" y2="'+y(g)+'" stroke="var(--bad)" stroke-dasharray="5 4" stroke-width="1.5"/><text x="'+(W-pr)+'" y="'+(y(g)-4)+'" text-anchor="end" style="fill:var(--bad)">meta '+fmt(g)+'</text>';
+    el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Gráfico de consumo mensal em kWh">'+s+'</svg>';
+  }
+  function renderContas(){
+    var c=sorted().reverse(),tb=$('tbContas');
+    tb.innerHTML=c.length?c.map(function(x){return '<tr><td>'+mlabel(x.m)+'</td><td class="n">'+fmt(x.kwh)+'</td><td class="n">'+fmt(x.rs,2)+'</td><td class="n">'+fmt(x.rs/x.kwh,2)+'</td><td><span class="pill '+BAND[x.b][1]+'">'+BAND[x.b][0]+'</span></td><td><button class="btn-x" data-delc="'+x.m+'" aria-label="Remover '+mlabel(x.m)+'">✕</button></td></tr>'}).join(''):'<tr><td colspan="6" class="empty">Nenhuma conta registrada.</td></tr>';
+    $('goal').value=st.goal;
+  }
+  function renderEq(){
+    var t=tarifa(),list=st.eq.map(function(e,i){return {e:e,i:i,k:eqK(e)}}).sort(function(a,b){return b.k-a.k}),tot=list.reduce(function(s,x){return s+x.k},0);
+    $('eqHint').textContent=list.length?'Total estimado: '+fmt(tot)+' kWh/mês ≈ '+brl(tot*t)+' (usando '+fmt(t,2)+' R$/kWh da sua última conta).':'Adicione os equipamentos do seu comércio para ver o ranking.';
+    $('tbEq').innerHTML=list.length?list.map(function(x){var p=tot?x.k/tot*100:0;return '<tr><td>'+x.e.n+' <span class="hint">×'+x.e.q+' · '+x.e.w+' W · '+x.e.h+' h/dia</span></td><td class="n">'+fmt(x.k)+'</td><td class="n">'+fmt(x.k*t,2)+'</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:'+p+'%"></i></div><span class="n" style="font-family:var(--mono);font-size:.8rem">'+fmt(p)+'%</span></div></td><td><button class="btn-x" data-dele="'+x.i+'" aria-label="Remover '+x.e.n+'">✕</button></td></tr>'}).join(''):'<tr><td colspan="5" class="empty">Nenhum equipamento cadastrado.</td></tr>';
+  }
+  function renderTips(){
+    var seg=st.seg,t=tarifa(),list=st.eq.map(function(e){return {e:e,k:eqK(e)}}).sort(function(a,b){return b.k-a.k}).slice(0,3),plan=[];
+    list.forEach(function(x){var n=x.e.n.toLowerCase(),a,pct;
+      if(/freezer|geladeira|refriger|balc/.test(n)){a='Verifique borrachas das portas, degele e afaste da parede. Na hora da troca, escolha modelo com Selo Procel A.';pct=.15}
+      else if(/ar-cond|ar cond/.test(n)){a='Regule em 23 °C, limpe os filtros todo mês e mantenha portas fechadas.';pct=.2}
+      else if(/fluoresc|halóg|halog|incandesc/.test(n)){a='Troque por LED: gasta menos da metade da energia para a mesma luz.';pct=.5}
+      else if(/forno|chapa|fritad/.test(n)){a='Use em lotes cheios e desligue nos intervalos sem produção.';pct=.15}
+      else if(/secador|chapinha|prancha/.test(n)){a='Desligue entre atendimentos e use o modo ecológico.';pct=.2}
+      else if(/compressor/.test(n)){a='Elimine vazamentos e desligue ao fim do expediente.';pct=.2}
+      else{a='Desligue da tomada quando não estiver em uso e revise as horas de funcionamento.';pct=.1}
+      plan.push('<li><span class="tag">−'+fmt(x.k*pct)+' kWh</span><span><b>'+x.e.n+'</b>'+a+' Economia estimada: '+brl(x.k*pct*t)+' por mês.</span></li>')});
+    $('plan').innerHTML=plan.length?plan.join(''):'<li><span class="tag">1º passo</span><span><b>Cadastre seus equipamentos</b>Com eles, o app indica onde agir primeiro.</span></li>';
+    $('segTitle').textContent='Dicas para '+$('seg').selectedOptions[0].textContent.toLowerCase();
+    $('segTips').innerHTML=TIPS[seg].map(function(d,i){return '<li><span class="tag">'+(i+1)+'</span><span>'+d+'</span></li>'}).join('');
+  }
+  function all(){$('seg').value=st.seg;renderMeter();renderChart();renderContas();renderEq();renderTips()}
+
+  $('eSug').innerHTML=SUG.map(function(s){return '<option value="'+s[0]+'">'}).join('');
+  $('eNome').addEventListener('change',function(){var s=SUG.find(function(x){return x[0]===$('eNome').value});if(s){$('eW').value=s[1];$('eH').value=s[2]}});
+  $('fConta').addEventListener('submit',function(ev){ev.preventDefault();leaveExample();var m=$('cMes').value;st.contas=st.contas.filter(function(x){return x.m!==m});st.contas.push({m:m,kwh:+$('cKwh').value,rs:+$('cRs').value,b:$('cBand').value});save();ev.target.reset();all()});
+  $('fEq').addEventListener('submit',function(ev){ev.preventDefault();leaveExample();st.eq.push({n:$('eNome').value.trim(),w:+$('eW').value,h:+$('eH').value,d:+$('eD').value,q:+$('eQ').value});save();ev.target.reset();$('eD').value=26;$('eQ').value=1;all()});
+  document.addEventListener('click',function(ev){var t=ev.target;
+    if(t.dataset.delc){st.contas=st.contas.filter(function(x){return x.m!==t.dataset.delc});save();all()}
+    if(t.dataset.dele){st.eq.splice(+t.dataset.dele,1);save();all()}
+    if(t.dataset.tab){document.querySelectorAll('nav.tabs button').forEach(function(b){b.setAttribute('aria-selected',b===t)});['contas','equip','dicas','conta'].forEach(function(p){$('p-'+p).hidden=p!==t.dataset.tab})}
+  });
+  $('goal').addEventListener('change',function(){st.goal=Math.max(0,Math.min(60,+$('goal').value||0));save();all()});
+  $('seg').addEventListener('change',function(){st.seg=$('seg').value;save();renderTips()});
+  $('clearEx').addEventListener('click',function(){leaveExample();save();all()});
+  var now=new Date();$('cMes').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  load();all();
+})();
+</script>
+</body>
+</html>
